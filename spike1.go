@@ -11,7 +11,9 @@ package main
 
 import (
 	"bufio"
+	"compress/gzip"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"os"
@@ -19,6 +21,7 @@ import (
 	"os/signal"
 	"regexp"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -98,6 +101,23 @@ func sseHandler(h *hub) http.HandlerFunc {
 		w.Header().Set("Cache-Control", "no-cache")
 		w.Header().Set("X-Accel-Buffering", "no")
 
+		// AIDEV-NOTE: Cloudflare quick tunnels buffer uncompressed streaming
+		// responses until EOF (edge holds the body to gzip it), which kills SSE.
+		// Sending gzip from the origin makes the edge pass bytes through live.
+		// Verified empirically 2026-08-08; plain SSE = 0 bytes until close.
+		var out io.Writer = w
+		doFlush := fl.Flush
+		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			w.Header().Set("Content-Encoding", "gzip")
+			gz := gzip.NewWriter(w)
+			defer gz.Close()
+			out = gz
+			doFlush = func() {
+				_ = gz.Flush()
+				fl.Flush()
+			}
+		}
+
 		last := 0
 		if v := r.Header.Get("Last-Event-ID"); v != "" {
 			if n, err := strconv.Atoi(v); err == nil {
@@ -112,14 +132,16 @@ func sseHandler(h *hub) http.HandlerFunc {
 		flush := func() bool {
 			start, batch := h.since(last)
 			for i, line := range batch {
-				fmt.Fprintf(w, "id: %d\ndata: %s\n\n", start+i, line)
+				fmt.Fprintf(out, "id: %d\ndata: %s\n\n", start+i, line)
 				last = start + i
 			}
 			if len(batch) > 0 {
-				fl.Flush()
+				doFlush()
 			}
 			return true
 		}
+		fmt.Fprint(out, ": connected\n\n") // push headers+first bytes through edge now
+		doFlush()
 		flush() // replay on connect
 
 		for {
@@ -129,8 +151,8 @@ func sseHandler(h *hub) http.HandlerFunc {
 			case <-sub:
 				flush()
 			case <-heartbeat.C:
-				fmt.Fprint(w, ": hb\n\n")
-				fl.Flush()
+				fmt.Fprint(out, ": hb\n\n")
+				doFlush()
 			}
 		}
 	}
@@ -151,7 +173,7 @@ es.onmessage=e=>{log.textContent+=e.data+'\n';window.scrollTo(0,document.body.sc
 </script>`
 
 func startTunnel(port int) (*exec.Cmd, string, error) {
-	cmd := exec.Command("cloudflared", "tunnel", "--url", fmt.Sprintf("http://127.0.0.1:%d", port))
+	cmd := exec.Command("cloudflared", "tunnel", "--protocol","http2","--url",fmt.Sprintf("http://127.0.0.1:%d", port))
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
 		return nil, "", err
