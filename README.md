@@ -11,10 +11,11 @@ Status: BUILD phase. All three spike gates **GO** (2026-08-08):
   events contiguous; mobile Safari stayed responsive at ~870 rx/s
   (decrypt-bound), gaps 0, fails 0.
 
-Build Order progress: phase 0 (scaffold + Makefile + CI) done 2026-08-08 —
-`make build test lint cross` all green. Next: phase 1 (tailer + redactor +
-crypto with unit tests). Spikes kept for reference under `spike1/ spike2/
-spike3/`, excluded from lint.
+Build Order progress: phase 0 (scaffold + Makefile + CI) done 2026-08-08;
+phase 1 (tailer + redactor + crypto, 15 unit tests) done 2026-08-11 —
+`make build test lint cross` all green, `-race` clean. Next: phase 2
+(server + embedded viewer, integration test with `-local`). Spikes kept for
+reference under `spike1/ spike2/ spike3/`, excluded from lint.
 
 ---
 
