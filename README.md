@@ -3,7 +3,18 @@
 **Share a live `tail -f` as a temporary, end-to-end-encrypted URL. One binary. Link dies when you Ctrl-C.**
 
 Type: RDD spec (Type A) — agent implements after spike gates pass.
-Status: SPIKE — no code until Spike 1 gate is GO.
+Status: BUILD phase. All three spike gates **GO** (2026-08-08):
+- Spike 1 (transport): phone over LTE, QUIC + forced http2.
+- Spike 2 (crypto): ciphertext-only on wire through tunnel; decrypt verified
+  in Safari + Chrome + Firefox.
+- Spike 3 (firehose): server flat at ~12.7 MB over 1,000 lines/s × 60s, all
+  events contiguous; mobile Safari stayed responsive at ~870 rx/s
+  (decrypt-bound), gaps 0, fails 0.
+
+Build Order progress: phase 0 (scaffold + Makefile + CI) done 2026-08-08 —
+`make build test lint cross` all green. Next: phase 1 (tailer + redactor +
+crypto with unit tests). Spikes kept for reference under `spike1/ spike2/
+spike3/`, excluded from lint.
 
 ---
 
@@ -166,7 +177,7 @@ No pod changes, works with distroless/read-only containers, log data leaves the 
 ## Open Questions
 
 1. Checksum verification source for cloudflared releases — pin format may change; resolve during Spike 1.
-2. `-qr` in v1 or defer? (tiny dep or ASCII QR hand-roll)
+2. ~~`-qr` in v1 or defer?~~ **Resolved 2026-08-08: `-qr` is in v1.** Use `skip2/go-qrcode` (pure Go, no cgo, terminal output via `ToSmallString`); hand-rolled ASCII QR rejected as needless code.
 3. Viewer line cap: 5,000 DOM lines with virtual trim — confirm smooth on mobile Safari during Spike 3.
 
 ## Agent Build Instructions
@@ -218,7 +229,7 @@ Human gate (Emmanuel, not agent): open URL on phone over LTE, watch 15 min, togg
 
 ### Constraints
 
-- Go stdlib + nxadm/tail only. No cgo (static build).
+- Go stdlib + nxadm/tail + skip2/go-qrcode (for `-qr`) only. No cgo (static build).
 - `AIDEV-` comments at every non-obvious decision point.
 - Secrets never logged, never in test fixtures.
 - `golangci-lint` clean.

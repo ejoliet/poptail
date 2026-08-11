@@ -1,4 +1,4 @@
-module spike1
+module github.com/ejoliet/poptail
 
 go 1.22
 
