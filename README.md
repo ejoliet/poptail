@@ -14,10 +14,14 @@ Status: BUILD phase. All three spike gates **GO** (2026-08-08):
 Build Order progress: phase 0 (scaffold + Makefile + CI) done 2026-08-08;
 phase 1 (tailer + redactor + crypto) done 2026-08-11; phase 2 (server +
 embedded viewer + `-local`) done 2026-08-11; phase 3 (tunnel manager) done
-2026-08-11 — default mode spawns a cloudflared quick tunnel and prints the
-https trycloudflare share URL; 33 tests incl. integration tests that drive
-the real binary in both modes. `make build test lint cross` all green,
-`-race` clean over repeated runs. Next: phase 4 (release binaries).
+2026-08-11 (gate passed: end-to-end via trycloudflare, user-verified);
+phase 4 (release matrix) done 2026-08-11 — `make cross` emits stripped,
+version-stamped binaries for all 6 platforms (6.1-6.8 MB, ceiling 15 MB),
+`make checksums` adds SHA256SUMS, tag push (`v*`) triggers the GitHub release
+workflow, and `install.sh` is the checksum-verified `curl | sh` installer.
+33 tests incl. integration tests driving the real binary in both modes.
+`make build test lint cross` all green, `-race` clean over repeated runs.
+Remaining before public: first tag + clean-VM run check (human), ship-check.
 
 All CLI-contract flags are live. Phase 3 deviation: cloudflared auto-download
 (steps 3 of the tunnel spec) is deferred — Open Question 1 (trusted checksum
@@ -37,6 +41,18 @@ lint.
 **Solution.** `poptail /var/log/build.log` prints a `https://<random>.trycloudflare.com/#k=<key>` link. Anyone with the link watches the log live, read-only, in a browser. Log lines are AES-GCM encrypted client-side; the key lives in the URL fragment and never reaches Cloudflare. Kill the process, the link is dead.
 
 **Who benefits.** Anyone running long jobs on remote boxes: CI debugging, pipeline ops, pair-debugging across institutions and networks.
+
+## Install
+
+```bash
+curl -sSfL https://raw.githubusercontent.com/ejoliet/poptail/main/install.sh | sh
+```
+
+Detects OS/arch (macOS/Linux, amd64/arm64), downloads the latest release
+binary, verifies it against the release's SHA256SUMS, installs to
+`~/.local/bin` (override: `POPTAIL_INSTALL_DIR`; pin a tag:
+`POPTAIL_VERSION=v0.1.0`). Windows: download the `.exe` from releases.
+Or: `go install github.com/ejoliet/poptail@latest`.
 
 ## Architecture
 

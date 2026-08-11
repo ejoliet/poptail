@@ -143,5 +143,27 @@ go test -race -count=3 ./...                              # incl. both integrati
 4. Repeat once with `-protocol http2`.
 5. Linux box: repeat step 1-3 once.
 
-Next: phase 4 — cross-compile release matrix (`-o dist/…`, binaries < 15 MB,
-clean-VM run check).
+# Phase 4 — release matrix
+
+```bash
+make cross       # dist/poptail_<os>_<arch>[.exe] ×6, stripped, <15 MB enforced
+make checksums   # + dist/SHA256SUMS
+git tag v0.1.0 && git push origin v0.1.0   # triggers .github/workflows/release.yml
+```
+
+Install (after first release exists):
+
+```bash
+curl -sSfL https://raw.githubusercontent.com/ejoliet/poptail/main/install.sh | sh
+```
+
+## Phase 4 gate (human): clean-VM run check
+1. Push a tag, wait for the release workflow, confirm 6 binaries + SHA256SUMS
+   attached to the GitHub release.
+2. Run install.sh on a clean macOS or Linux box (or fresh container:
+   `docker run --rm -it debian sh` + curl); `poptail -version` prints the tag.
+3. `poptail /tmp/x.log` works on the clean box (cloudflared on PATH there, or
+   expect the install hint).
+
+All build phases 0-4 done. Remaining for v1 public: ship-check, acceptance
+sweep (500 MB startup timing), Open Question 1 (cloudflared auto-download).
