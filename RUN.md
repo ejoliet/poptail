@@ -96,4 +96,52 @@ make lint    # go vet + golangci-lint (spikes excluded — throwaway)
 make cross   # compile check darwin/linux/windows × amd64/arm64
 ```
 
-Next: phase 1 — tailer + redactor + crypto, unit tests.
+Phase 1 (tailer + redactor + crypto) done 2026-08-11.
+Phase 2 (server + embedded viewer + `-local`) done 2026-08-11.
+Phase 3 (cloudflared tunnel manager, `-qr`, `-protocol`) done 2026-08-11.
+
+## Running v1
+
+Requires cloudflared on PATH (`brew install cloudflared`) or
+`POPTAIL_CLOUDFLARED=/path/to/binary` — auto-download deferred
+(checksum source unresolved, see implementation-notes.md).
+
+```bash
+go build -o poptail .
+
+# terminal 1: synthetic log
+while true; do date >> /tmp/poptail.log; sleep 1; done
+# terminal 2: prints https://<random>.trycloudflare.com/#k=<key>
+./poptail -n 50 /tmp/poptail.log
+# stdin mode
+kubectl logs -f deploy/foo | ./poptail -
+# phone: QR of the share URL in the terminal
+./poptail -qr /tmp/poptail.log
+# egress UDP 7844 blocked → force TCP
+./poptail -protocol http2 /tmp/poptail.log
+```
+
+Open the printed URL — fragment (`#k=...`) included — anywhere.
+Viewer has pause + filter; stats bar shows state | rx | rate/s | gaps | fails.
+
+**`-local` caveat:** WebCrypto only exists on https or localhost origins, so
+a `-local` link opened as `http://<lan-ip>` shows "WebCrypto unavailable" by
+design. Same-machine viewing: replace the LAN IP with `127.0.0.1`. Cross-device:
+use the tunnel (default mode). Tunnel failure falls back to LAN automatically.
+
+```bash
+curl -sN --compressed '<share-url-without-#k>stream'      # ciphertext only
+curl -sN -H 'Last-Event-ID: 3' '<...>stream'              # resumes at id 4
+go test -race -count=3 ./...                              # incl. both integration tests
+```
+
+## Phase 3 gate (human): end-to-end via trycloudflare on macOS + Linux
+1. `./poptail /tmp/poptail.log` → open share URL on phone (LTE, not wifi).
+2. Lines appear < 2s; reload mid-stream decrypts (ring replay).
+3. Ctrl-C → link dead, `pgrep cloudflared` shows no NEW orphan
+   (a pre-existing `cloudflared tunnel run --token` system service is not ours).
+4. Repeat once with `-protocol http2`.
+5. Linux box: repeat step 1-3 once.
+
+Next: phase 4 — cross-compile release matrix (`-o dist/…`, binaries < 15 MB,
+clean-VM run check).

@@ -12,10 +12,21 @@ Status: BUILD phase. All three spike gates **GO** (2026-08-08):
   (decrypt-bound), gaps 0, fails 0.
 
 Build Order progress: phase 0 (scaffold + Makefile + CI) done 2026-08-08;
-phase 1 (tailer + redactor + crypto, 15 unit tests) done 2026-08-11 —
-`make build test lint cross` all green, `-race` clean. Next: phase 2
-(server + embedded viewer, integration test with `-local`). Spikes kept for
-reference under `spike1/ spike2/ spike3/`, excluded from lint.
+phase 1 (tailer + redactor + crypto) done 2026-08-11; phase 2 (server +
+embedded viewer + `-local`) done 2026-08-11; phase 3 (tunnel manager) done
+2026-08-11 — default mode spawns a cloudflared quick tunnel and prints the
+https trycloudflare share URL; 33 tests incl. integration tests that drive
+the real binary in both modes. `make build test lint cross` all green,
+`-race` clean over repeated runs. Next: phase 4 (release binaries).
+
+All CLI-contract flags are live. Phase 3 deviation: cloudflared auto-download
+(steps 3 of the tunnel spec) is deferred — Open Question 1 (trusted checksum
+source) is unresolved, and executing an unverified download is the wrong
+default. Missing binary → clear install hint + `-local` suggestion.
+Note: `-local` viewers need `localhost` — WebCrypto does not exist on plain
+`http://<lan-ip>` origins (non-secure context); the tunnel's https URL is the
+cross-device path. Spikes kept under `spike1/ spike2/ spike3/`, excluded from
+lint.
 
 ---
 

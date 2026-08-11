@@ -2,6 +2,11 @@ version: "2"
 
 linters:
   exclusions:
+    presets:
+      # golangci-lint's stock exclusions: unchecked fmt.Fprint* / Close / Flush.
+      # Ignoring stdout/stderr and SSE write errors is deliberate here — a dead
+      # client is detected via the request context, not the write result.
+      - std-error-handling
     paths:
       # Throwaway spike code (gate artifacts, kept for reference) — the
       # "golangci-lint clean" constraint in README applies to v1 code.
